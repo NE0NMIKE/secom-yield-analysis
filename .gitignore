@@ -1,0 +1,11 @@
+# Raw and cleaned data: downloaded by get_data.sh, so never committed
+data/
+
+# Python virtual environment (each person creates their own)
+.venv/
+
+# Python bytecode cache
+__pycache__/
+
+# macOS Finder metadata
+.DS_Store
