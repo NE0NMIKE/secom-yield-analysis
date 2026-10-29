@@ -227,6 +227,7 @@ The 99% cut-off drops the first group and keeps the second.
 ## Findings to report
 
 - **F1.** On 11 Oct 2008 at 07:39, six signals that are zero on every other run (s74, s206, s209, s342, s347 and s478) all fired in the same run. This looks like a one-off event, such as maintenance, a recalibration, an alarm or a logging glitch. It's worth checking against maintenance logs.
+- **F2.** On the full dataset, 169 pairs of signals are near-duplicates (|r| > 0.95). Only about 5 pairs are close to exact copies (|r| > 0.9999), and none is exactly 1, so most pairs are not simple unit conversions or duplicate logging. About three-quarters of the pairs (125 of 169) sit 135–138 or 272–273 columns apart. This suggests the signals are arranged in repeating blocks of about 136 measurements. The data is anonymised, so it can't show why. Possible explanations include repeated process cycles, identical tool chambers, or different summaries of the same readings.
 
 ---
 
