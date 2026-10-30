@@ -278,6 +278,32 @@ The 99% cut-off drops the first group and keeps the second.
 
 **Why:** a signal that keeps ranking highly and stays above what noise can produce is strongly linked to failure in a way noise alone can't explain. Consistency across folds is used here to *order* the list, not as proof that a signal is real. Because the training sets overlap, it can't serve as proof on its own (see D11).
 
+**Combining method, decided 30 Oct 2026:** in each fold, give every signal its position in that fold's ranking (1 = most important). Add up each signal's positions across the five folds. The 40 signals with the lowest totals form the list.
+- **Why positions and not raw scores:** fold 1 learns from 262 runs and fold 5 from 1306, so their importance scores sit on different scales. Adding raw scores would let one fold dominate. Positions don't have that problem.
+
+**Noise ceiling across folds, decided 30 Oct 2026:**
+- **Options considered:**
+  - The signal must beat its own noise scores in every fold.
+  - The signal's average importance across folds must beat its average noise scores.
+- **Choice:** averaged. Each label shuffle gives a signal one average across the five folds, so there are 10 noise averages. The signal's real average must beat **all 10**. Beating only the mean of the 10 would let about half of pure-noise signals through, compared with about 1 in 11.
+- **Why:** it is consistent with the prediction check (D11), which is also averaged and also requires beating every shuffled model. Requiring every fold is stricter, so a real signal could fail in a small fold such as fold 1 (262 runs, 39 fails), against D2's priority of not missing real signals.
+
+**Signals missing from a fold, decided 30 Oct 2026:**
+- **The size of the problem:** cleaning is learned separately in each fold, so the signals kept differ slightly. 244 signals are kept in every fold, and 48 in only some.
+- **Options considered:**
+  - Last place.
+  - The twin's position.
+  - Average the signal's positions over the folds it appears in.
+  - Exclude any signal missing from a fold.
+- **Choice:** the twin's position. For example, s277 is dropped in folds 4 and 5 as a twin of s142, so it takes s142's position, and s142's noise scores, in those folds.
+- **Why:** the twin stood in for the dropped signal and moves almost identically, which fits D10's rule to report twins together.
+- **Signals near-constant in a fold, decided 30 Oct 2026:** 97 of the 104 missing slots are twins. The other 7 are signals that cleaning dropped as near-constant in that fold but kept in others (s114 in one fold; s542, s543 and s544 in two folds each).
+  - **Options considered:**
+    - Last place in that fold.
+    - The average of its positions in the other folds.
+  - **Choice:** last place, with an importance of zero in that fold for both the real and the noise scores.
+  - **Why:** in that fold the signal held one value on 99% or more of the training runs, so it really couldn't separate passes from fails there. Averaging the other folds would assume it did as well as elsewhere, which hasn't been shown.
+
 ---
 
 ## D13. Handling the class imbalance (about 14 passes per fail)
@@ -310,6 +336,17 @@ The 99% cut-off drops the first group and keeps the second.
 - Each tree learns from fewer runs (78 to 180), but averaging many trees smooths that out.
 
 **Trade-off accepted:** sklearn doesn't include balanced trees, so it has to be written and tested in this project.
+
+**How each tree samples runs, decided 30 Oct 2026:**
+- **Options considered:**
+  - Every tree uses all the fails, plus an equal number of passes.
+  - The published method: each tree draws a random sample of fails with replacement, plus the same number of passes.
+- **Choice:** the published method.
+- **Why:** it matches the method as published, so the method can be cited accurately. Each tree misses about a third of the fails, so there is less memorising, which matters because importance is measured on training runs (D11). The trees also differ more from one another.
+
+**Number of trees, decided 30 Oct 2026:** 500. More trees make results steadier and never make predictions worse. The only cost is run time.
+
+**Scramble repeats per signal, decided 30 Oct 2026:** 5. Ten would double the run time.
 
 **Effect on option A:** each tree already sees equal numbers of passes and fails, so `class_weight="balanced"` is no longer needed.
 
