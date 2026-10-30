@@ -228,7 +228,14 @@ The 99% cut-off drops the first group and keeps the second.
   - BER is also the measure used in the published baseline, so the results are comparable with it.
   - BER makes each missed fail cost about 14 times as much as each false alarm, because fails are about 14 times rarer. This ratio comes from the class sizes, not from a known cost. The real costs aren't known, so baseline comparability is the main defence.
 
-**Number of label shuffles, provisionally 30 Oct 2026:** 10 to start with. To be confirmed before looking at which signals clear the ceiling.
+**Number of label shuffles, decided 30 Oct 2026:** 10, confirmed before the full run, so before any results were seen. 20 was considered: it would let about 14 pure-noise signals clear the ceiling by luck instead of about 25, but it would double the run time to about 40 minutes.
+
+**How labels are shuffled, decided 30 Oct 2026:**
+- **Options considered:**
+  - Shuffle each fold's training labels separately.
+  - Shuffle all 1,567 labels once, then split into folds.
+- **Choice:** within each fold.
+- **Why:** each fold keeps its real number of fails (fold 1 has 39), so noise runs are compared with the real run like for like. Shuffling the whole column would spread out the early cluster of fails, leaving fold 1 with about 17. The test labels are never shuffled.
 
 **Importance score, decided 30 Oct 2026:** permutation importance is measured as the rise in BER when a signal is scrambled. This is more reliable than accuracy for the same reasons as above, and it is consistent with how the model is judged.
 
