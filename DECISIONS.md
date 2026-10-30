@@ -46,6 +46,16 @@ Entries marked **Open** are still being decided.
 
 **Why:** in production a model is trained on past runs and used on future ones, so testing on later runs is the honest test. Random shuffling lets the model learn from the future, which overstates its performance, especially if the process drifted over the three months. With only 104 failures, a three-way split would leave about 21 failures per set, which is too few to measure anything reliably.
 
+**Number of folds, decided 30 Oct 2026:**
+- **Options considered:** 3, 5, 8 and 10 folds. The fail counts in each test block were checked before choosing:
+  - 3 folds: 13 to 24 fails per block.
+  - 5 folds: 6 to 22.
+  - 8 folds: 4 to 26.
+  - 10 folds: 2 to 23.
+- **Choice:** 5 folds.
+- **Why:** with 10 folds, one test block has only 2 fails, which is too few to tell a skilled model from a lucky one. With 3 folds there are only 3 checks. With 5, every test block has at least 6 fails.
+- **Found while checking:** failures are not spread evenly over time. The first 262 runs (July to mid-August) have a 15% fail rate. From late August onwards it is about 2–5%.
+
 ---
 
 ## D4. Number of top signals fixed at 40
@@ -130,7 +140,7 @@ Because the test uses pass/fail labels, it runs on training data only, inside ea
 
 ## D9. Near-constant signals
 
-**Status:** Open
+**Status:** Decided, 30 Oct 2026
 
 **Facts:**
 - 116 signals are exactly constant.
@@ -151,11 +161,13 @@ The 99% cut-off drops the first group and keeps the second.
 
 **Pass/fail labels:** they were not used to make this decision. The rule was fixed first, and labels may be looked at afterwards for reporting only.
 
+**Closed, 30 Oct 2026:** no result from plotting group 1 could change the decision to drop it. Whether that run passed or failed, it is one event. It is reported as F1 and not analysed further.
+
 ---
 
 ## D10. Twin signals (|r| > 0.95)
 
-**Status:** Partly open
+**Status:** Decided, 30 Oct 2026
 
 **Options considered:**
 - Keep all twins.
@@ -206,7 +218,51 @@ The 99% cut-off drops the first group and keeps the second.
 - (b) shows that the top 40 *as a group* carry real information about failure, using data the model has never seen. Some of the 40 may still be false positives. That is acceptable, because engineers can start targeting fixes as long as the real signals are on the list.
 - (c) measures how much importance pure noise can produce, which sets a ceiling for noise. A signal that scores clearly above it is linked to failure beyond what noise explains. This is a check on each signal individually.
 
-**Open:** what "better than guessing" means, given that the failures are rare.
+**Measuring prediction, decided 30 Oct 2026:**
+- **Options considered:**
+  - Accuracy.
+  - The balanced error rate (BER), which averages the share of fails missed and the share of passes wrongly flagged.
+- **Choice:** BER. Guessing scores 0.5. Lower is better.
+- **Why:**
+  - Accuracy rewards a model that always says "pass". That model is 91.6% accurate in fold 1 and 97.7% in fold 2, so the accuracy baseline changes from block to block as the fail rate changes. BER gives that model 0.5 in every block, so folds can be compared meaningfully.
+  - BER is also the measure used in the published baseline, so the results are comparable with it.
+  - BER makes each missed fail cost about 14 times as much as each false alarm, because fails are about 14 times rarer. This ratio comes from the class sizes, not from a known cost. The real costs aren't known, so baseline comparability is the main defence.
+
+**Number of label shuffles, provisionally 30 Oct 2026:** 10 to start with. To be confirmed before looking at which signals clear the ceiling.
+
+**Importance score, decided 30 Oct 2026:** permutation importance is measured as the rise in BER when a signal is scrambled. This is more reliable than accuracy for the same reasons as above, and it is consistent with how the model is judged.
+
+**Which runs importance is measured on, decided 30 Oct 2026:**
+- **Options considered:**
+  - (a) The test block. Rejected: the top 40 would be picked using the same runs that later grade the top-40 forest, so test data would leak into the check.
+  - (b) The training runs.
+  - (c) A "mock exam" held back from the end of each training period. Rejected: fold 3's mock exam would contain only 2 fails.
+  - (d) The forest's built-in (impurity) importance. It's calculated on training runs like (b), and it favours signals with many distinct values.
+- **Choice:** (b).
+- **Why:** the scores are inflated, because the forest partly memorised these runs. But the label-shuffle forests memorise too, so a signal that beats its own noise scores is still linked to failure beyond what memorising plus luck can explain. The top-40 forest is graded on unseen test runs, which memorising can't help with, so a top 40 made of memorisation signals would show up as a BER near 0.5.
+- **Limits accepted:**
+  - The inflation in real and shuffled forests is probably similar but not identical. A forest with shuffled labels has nothing real to learn, so it relies on memorising entirely.
+  - The prediction check tests the 40 as a group, so a few memorisation signals among them can still get through.
+
+**Better than guessing, decided 30 Oct 2026:**
+- **Options considered:**
+  - BER below a fixed value.
+  - BER lower than most of the shuffled-label models.
+  - BER lower than every shuffled-label model.
+- **Choice:** lower than every shuffled-label model.
+- **Why:** shuffled-label models have no real information by design, so their BER values show how good a model can look by luck alone.
+- **Applied to, decided 30 Oct 2026:** the BER averaged across the five folds, not each fold separately.
+  - **Why:** requiring it in every fold is stricter, so a real but modest model could fail the check because of noise in one small fold (fold 2 has only 6 fails). Averaging fits D2's priority of not missing real signals.
+  - **Trade-off accepted:** one strong fold can hide weak ones. Per-fold BERs are reported as well, so this stays visible.
+
+**Noise ceiling, decided 30 Oct 2026:**
+- **Options considered:**
+  - (i) A ceiling for each signal, with 10 shuffles.
+  - (ii) A ceiling for each signal, with about 100 shuffles (about 2 hours).
+  - (iii) One shared ceiling for all signals.
+- **Choice:** (i).
+- **Why:** each signal has its own noise level, because trees use some signals more often than others, and those signals pick up more chance importance.
+- **Trade-off accepted:** a pure-noise signal beats all 10 of its own shuffled scores about 1 time in 11, so about 25 of the 271 signals can clear the ceiling by luck. The requirement to rank highly across folds (D12) is relied on to filter most of these out.
 
 ---
 
@@ -221,6 +277,45 @@ The 99% cut-off drops the first group and keeps the second.
 **Choice:** (b). Signals that rank highly across folds *and* score above the noise ceiling (D11) go on the list.
 
 **Why:** a signal that keeps ranking highly and stays above what noise can produce is strongly linked to failure in a way noise alone can't explain. Consistency across folds is used here to *order* the list, not as proof that a signal is real. Because the training sets overlap, it can't serve as proof on its own (see D11).
+
+---
+
+## D13. Handling the class imbalance (about 14 passes per fail)
+
+**Status:** Partly open
+
+**The problem:** a forest trained without any adjustment is rewarded mostly for getting passes right, so it predicts "pass" almost every time. Its predictions then barely change when any one signal is scrambled, so every signal's importance comes out near zero and the ranking is noise.
+
+**Options considered:**
+- A. Class weighting (`class_weight="balanced"`).
+- B. Undersample the passes.
+- C. Oversample the fails.
+
+**Choice, 30 Oct 2026:** A.
+
+**Why:** each fail counts about 14 times as much as each pass. That matches how BER scores the model (D11), so the forest is trained on the same terms it is judged by. No data is thrown away (B) and none is copied (C).
+
+**Found on 30 Oct 2026, while timing one fold:** with class weighting alone, the forest predicted 0 of the 14 fails in fold 5's test block. Weighting by itself is not enough. Still open.
+
+**Follow-up options considered, 30 Oct 2026:**
+- A1. Stop trees growing earlier (`min_samples_leaf`).
+- A2. Lower the probability cut-off for calling a run a fail.
+- A3. Balanced trees: each tree trains on all fails plus an equal-sized sample of passes.
+
+**Choice, 30 Oct 2026:** A3, balanced trees. This replaces A1, which was provisional (at least 14 runs per leaf, later 50).
+
+**Why:**
+- It's a published method, the "balanced random forest", and there is no leaf size to choose and justify.
+- A1 was rejected because its leaf size couldn't be justified. Leaves aren't random samples of runs, so "expected fails per leaf" arithmetic doesn't hold. Large leaves (50 runs) would also leave fold 1's trees with at most 5 leaves, which can't capture the combinations of signals that the forest was chosen for (D10).
+- Each tree learns from fewer runs (78 to 180), but averaging many trees smooths that out.
+
+**Trade-off accepted:** sklearn doesn't include balanced trees, so it has to be written and tested in this project.
+
+**Effect on option A:** each tree already sees equal numbers of passes and fails, so `class_weight="balanced"` is no longer needed.
+
+**Check on training data only (fold 5, out-of-bag predictions):**
+- With leaves of 1 run, the forest flagged 4 runs as fails and caught 4 of the 90 fails. BER 0.48.
+- With leaves of at least 14 runs, it flagged 97 runs and caught 9 of the 90 fails. BER 0.49.
 
 ---
 
